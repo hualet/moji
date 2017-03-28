@@ -18,15 +18,6 @@ func TestNewClient(t *testing.T) {
 	os.Setenv(appCodeEnv, env)
 }
 
-func TestConditionByLatLong(t *testing.T) {
-	// c, err := NewClient()
-	// if err != nil {
-	// 	t.Error(err)
-	// }
-
-	// cond, err := c.ConditionByLatLong("30.6", "114.4")
-}
-
 func TestUnmarshalConditionData(t *testing.T) {
 	data := []byte(
 		`{
