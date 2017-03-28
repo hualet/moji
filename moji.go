@@ -84,12 +84,9 @@ func NewClient() (*Client, error) {
 }
 
 // ConditionByLatLong fetch the current condition of target city by latitude and longitude.
-func (m *Client) ConditionByLatLong(lat, long string) (*ConditionData, error) {
-	// fetch current condition
-	form := m.generatePostData(lat, long)
-
-	req, _ := http.NewRequest("POST", mojiHost+briefCurrent, strings.NewReader(form.Encode()))
-	resp, err := m.httpClient.Do(req)
+func (c *Client) ConditionByLatLong(lat, long string) (*ConditionData, error) {
+	req, _ := c.createMojiRequest(mojiHost+briefCurrent, lat, long)
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -108,12 +105,9 @@ func (m *Client) ConditionByLatLong(lat, long string) (*ConditionData, error) {
 }
 
 // ForecastByLatLong fetch the forecasts data of the target city by latitude and longitude.
-func (m *Client) ForecastByLatLong(lat, long string) (*ForecastData, error) {
-	// fetch current condition
-	form := m.generatePostData(lat, long)
-
-	req, _ := http.NewRequest("POST", mojiHost+briefCurrent, strings.NewReader(form.Encode()))
-	resp, err := m.httpClient.Do(req)
+func (c *Client) ForecastByLatLong(lat, long string) (*ForecastData, error) {
+	req, _ := c.createMojiRequest(mojiHost+briefForcast, lat, long)
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -214,12 +208,12 @@ func (c *Condition) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (m *Client) generatePostData(lat, long string) url.Values {
+func (c *Client) generatePostData(lat, long string) url.Values {
 	ret := url.Values{}
 
 	ret.Add("lat", lat)
 	ret.Add("lon", long)
-	ret.Add("token", m.token)
+	ret.Add("token", c.token)
 
 	return ret
 }
@@ -258,4 +252,18 @@ func unmarshalConditionData(content []byte) (*ConditionData, error) {
 	}
 
 	return ret, nil
+}
+
+func (c *Client) createMojiRequest(url, lat, long string) (*http.Request, error) {
+	form := c.generatePostData(lat, long)
+
+	req, err := http.NewRequest("POST", mojiHost+briefCurrent, strings.NewReader(form.Encode()))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Authorization", "APPCODE "+c.appCode)
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
+
+	return req, nil
 }
