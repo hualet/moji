@@ -11,14 +11,20 @@ import (
 )
 
 const (
-	mojiHost     = "http://aliv1.data.moji.com"
-	briefForcast = "/whapi/json/aliweather/briefforecast6days"
-	briefCurrent = "/whapi/json/aliweather/briefcondition"
-	token        = "0f9d7e535dfbfad15b8fd2a84fee3e36"
-	appCodeEnv   = "MOJI_APP_CODE"
+	mojiHost       = "http://aliv1.data.moji.com"
+	briefForcast   = "/whapi/json/aliweather/briefforecast6days"
+	briefCondition = "/whapi/json/aliweather/briefcondition"
+	forecastToken  = "0f9d7e535dfbfad15b8fd2a84fee3e36"
+	conditionToken = "a231972c3e7ba6b33d8ec71fd4774f5e"
+	appCodeEnv     = "MOJI_APP_CODE"
 
 	updateTimeLayout  = "2006-01-02 15:04:05"
 	predictDateLayout = "2006-01-02"
+)
+
+const (
+	serviceCondition = 1 << iota
+	serviceForecast
 )
 
 // City represents a city in moji service.
@@ -62,7 +68,6 @@ type ForecastData struct {
 // Client do all the requests against moji service for you.
 type Client struct {
 	appCode    string
-	token      string
 	httpClient *http.Client
 }
 
@@ -75,7 +80,6 @@ func NewClient() (*Client, error) {
 		return nil, ErrAppCodeEnv
 	}
 
-	m.token = token
 	m.httpClient = &http.Client{
 		Timeout: time.Second * 5,
 	}
@@ -85,13 +89,14 @@ func NewClient() (*Client, error) {
 
 // ConditionByLatLong fetch the current condition of target city by latitude and longitude.
 func (c *Client) ConditionByLatLong(lat, long string) (*ConditionData, error) {
-	req, _ := c.createMojiRequest(mojiHost+briefCurrent, lat, long)
+	req, _ := c.createMojiRequest(serviceCondition, lat, long)
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
 
 	content, err := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -106,13 +111,14 @@ func (c *Client) ConditionByLatLong(lat, long string) (*ConditionData, error) {
 
 // ForecastByLatLong fetch the forecasts data of the target city by latitude and longitude.
 func (c *Client) ForecastByLatLong(lat, long string) (*ForecastData, error) {
-	req, _ := c.createMojiRequest(mojiHost+briefForcast, lat, long)
+	req, _ := c.createMojiRequest(serviceForecast, lat, long)
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
 
 	content, err := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -208,16 +214,6 @@ func (c *Condition) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (c *Client) generatePostData(lat, long string) url.Values {
-	ret := url.Values{}
-
-	ret.Add("lat", lat)
-	ret.Add("lon", long)
-	ret.Add("token", c.token)
-
-	return ret
-}
-
 func unmarshalForecastData(content []byte) (*ForecastData, error) {
 	ret := &ForecastData{}
 
@@ -254,10 +250,24 @@ func unmarshalConditionData(content []byte) (*ConditionData, error) {
 	return ret, nil
 }
 
-func (c *Client) createMojiRequest(url, lat, long string) (*http.Request, error) {
-	form := c.generatePostData(lat, long)
+func (c *Client) createMojiRequest(service int, lat, long string) (*http.Request, error) {
+	var rurl string
+	var token string
 
-	req, err := http.NewRequest("POST", mojiHost+briefCurrent, strings.NewReader(form.Encode()))
+	if service == serviceCondition {
+		rurl = mojiHost + briefCondition
+		token = conditionToken
+	} else {
+		rurl = mojiHost + briefForcast
+		token = forecastToken
+	}
+
+	form := url.Values{}
+	form.Add("lat", lat)
+	form.Add("lon", long)
+	form.Add("token", token)
+
+	req, err := http.NewRequest("POST", rurl, strings.NewReader(form.Encode()))
 	if err != nil {
 		return nil, err
 	}
