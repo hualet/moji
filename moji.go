@@ -43,7 +43,8 @@ type Condition struct {
 	Temp          int       `json:"temp,string"`
 	UpdateTime    time.Time `json:"updatetime"`
 	WindDirection string    `json:"windDir"`
-	WindLevel     int       `json:"windLevel,string"`
+	WindLevelLow  int
+	WindLevelHigh int
 }
 
 // Forecast stands for one forecast records of the future days.
@@ -144,8 +145,8 @@ func (f *Forecast) UnmarshalJSON(data []byte) error {
 		TempNight          int    `json:"tempNight,string"`
 		WindDirectionDay   string `json:"windDirDay"`
 		WindDirectionNight string `json:"windDirNight"`
-		WindLevelDay       int    `json:"windLevelDay,string"`
-		WindLevelNight     int    `json:"windLevelNight,string"`
+		WindLevelDay       string `json:"windLevelDay"`
+		WindLevelNight     string `json:"windLevelNight"`
 	}{}
 
 	err := json.Unmarshal(data, conv)
@@ -166,6 +167,7 @@ func (f *Forecast) UnmarshalJSON(data []byte) error {
 
 	f.PredictDate = predictDate
 
+	windLevelLow, windLevelHigh := parseWindLevel(conv.WindDirectionDay)
 	f.DayCondition = &Condition{
 		ID:            conv.ConditionIDDay,
 		Name:          conv.ConditionDay,
@@ -173,9 +175,11 @@ func (f *Forecast) UnmarshalJSON(data []byte) error {
 		Temp:          conv.TempDay,
 		UpdateTime:    updateTime,
 		WindDirection: conv.WindDirectionDay,
-		WindLevel:     conv.WindLevelDay,
+		WindLevelLow:  windLevelLow,
+		WindLevelHigh: windLevelHigh,
 	}
 
+	windLevelLow, windLevelHigh = parseWindLevel(conv.WindDirectionNight)
 	f.NightCondition = &Condition{
 		ID:            conv.ConditionIDNight,
 		Name:          conv.ConditionNight,
@@ -183,7 +187,8 @@ func (f *Forecast) UnmarshalJSON(data []byte) error {
 		Temp:          conv.TempNight,
 		UpdateTime:    updateTime,
 		WindDirection: conv.WindDirectionNight,
-		WindLevel:     conv.WindLevelNight,
+		WindLevelLow:  windLevelLow,
+		WindLevelHigh: windLevelHigh,
 	}
 
 	return nil
@@ -195,6 +200,7 @@ func (c *Condition) UnmarshalJSON(data []byte) error {
 
 	aux := &struct {
 		UpdateTime string `json:"updatetime"`
+		WindLevel  string `json:"windLevel"`
 		*Alias
 	}{
 		Alias: (*Alias)(c),
@@ -209,7 +215,11 @@ func (c *Condition) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
+	windLevelLow, windLevelHigh := parseWindLevel(aux.WindLevel)
+
 	c.UpdateTime = updateTime
+	c.WindLevelLow = windLevelLow
+	c.WindLevelHigh = windLevelHigh
 
 	return nil
 }
